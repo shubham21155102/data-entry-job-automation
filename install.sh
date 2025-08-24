@@ -11,8 +11,12 @@ sudo apt install -y python3 python3-pip
 echo "Installing other useful tools..."
 sudo apt install -y imagemagick poppler-utils
 
-echo "Installing Python libraries..."
-pip3 install pytesseract pillow opencv-python-headless numpy pandas openpyxl python-docx
+echo "Installing Python libraries (from requirements.txt)..."
+if [ -f requirements.txt ]; then
+	pip3 install -r requirements.txt
+else
+	pip3 install streamlit pillow python-dotenv groq paddleocr opencv-python-headless numpy
+fi
 
 echo "Installation complete!"
 echo "You can now use Tesseract OCR for text recognition in your data entry automation."
