@@ -1,6 +1,7 @@
 echo "Updating package lists..."
 sudo apt update
 
+sudo apt-get install -y libgl1
 echo "Installing Tesseract OCR and dependencies..."
 sudo apt install -y tesseract-ocr tesseract-ocr-eng
 

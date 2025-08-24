@@ -1,13 +1,41 @@
 import streamlit as st
-import pytesseract
+# import pytesseract  # We'll replace this with PaddleOCR
 from PIL import Image
 import dotenv
 import os
 import json
+import numpy as np
+import cv2
+from paddleocr import PaddleOCR
+
 dotenv.load_dotenv()
 from groq import Groq
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Initialize PaddleOCR once (with both Hindi and English support)
+ocr = PaddleOCR(use_angle_cls=True, lang="hi", show_log=False)
+
+# Function for image preprocessing
+def preprocess_image(img):
+    # Convert PIL Image to OpenCV format
+    img_cv = np.array(img.convert('RGB'))
+    img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
+    
+    # Convert to grayscale
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    
+    # Apply adaptive thresholding
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                  cv2.THRESH_BINARY, 11, 2)
+    
+    # Denoise
+    denoised = cv2.medianBlur(thresh, 3)
+    
+    # Deskew if needed (simplified version)
+    # More advanced deskewing could be implemented if needed
+    
+    return denoised
 
 # Streamlit App Title
 st.title("📄 Hindi + English OCR Extractor")
@@ -27,8 +55,22 @@ if uploaded_files:
 
         st.image(img, caption=f"Uploaded: {uploaded_file.name}", use_container_width=True)
 
-        # OCR - Hindi + English
-        extracted_text = pytesseract.image_to_string(img, lang="hin+eng")
+        # Preprocess the image
+        processed_img = preprocess_image(img)
+        
+        # Show processed image (optional)
+        st.image(processed_img, caption=f"Processed: {uploaded_file.name}", use_container_width=True)
+
+        # OCR with PaddleOCR
+        result = ocr.ocr(processed_img, cls=True)
+        
+        # Extract text from PaddleOCR result
+        extracted_text = ""
+        for line in result[0]:
+            if line:
+                for entry in line:
+                    extracted_text += entry[1][0] + " "
+                extracted_text += "\n"
 
         # Show extracted text
         st.subheader(f"Extracted Text from {uploaded_file.name}")
@@ -110,13 +152,13 @@ Now extract details from this text:
             stop=None
         )
         
-        # Get the response content
+# Get the response content
 result = completion.choices[0].message.content
         
 try:
-            # Try to parse as JSON for better display
-            parsed_json = json.loads(result)
-            st.json(parsed_json)
+    # Try to parse as JSON for better display
+    parsed_json = json.loads(result)
+    st.json(parsed_json)
 except json.JSONDecodeError:
-            # If not valid JSON, display as text
-            st.text_area("Extracted Information", result, height=400)
+    # If not valid JSON, display as text
+    st.text_area("Extracted Information", result, height=400)
