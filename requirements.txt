@@ -6,3 +6,4 @@ paddleocr
 paddlepaddle==2.6.1
 opencv-python-headless
 numpy
+graphviz

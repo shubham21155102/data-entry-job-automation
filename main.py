@@ -7,6 +7,19 @@ import numpy as np
 import cv2
 from paddleocr import PaddleOCR
 
+# --- Compatibility monkey patch ---
+# Some versions of paddlepaddle used with paddleocr/paddlex call
+# Config.set_optimization_level(3) which may not exist (older CPU wheels).
+# Provide a harmless no-op to avoid AttributeError.
+try:  # pragma: no cover
+    from paddle import inference as _paddle_inference
+    if not hasattr(_paddle_inference.Config, "set_optimization_level"):
+        def _noop(self, *args, **kwargs):
+            return None
+        _paddle_inference.Config.set_optimization_level = _noop  # type: ignore[attr-defined]
+except Exception:
+    pass
+
 dotenv.load_dotenv()
 from groq import Groq
 
@@ -20,8 +33,14 @@ def get_ocr_models():
     use_textline_orientation replaces deprecated use_angle_cls.
     """
     # Removed invalid 'show_log' argument (caused ValueError) and deprecated use_angle_cls.
-    hi_model = PaddleOCR(lang="hi", use_textline_orientation=True)
-    en_model = PaddleOCR(lang="en", use_textline_orientation=True)
+    def build(lang: str):
+        # Prefer new param; fallback to legacy (angle classifier) if not available
+        try:
+            return PaddleOCR(lang=lang, use_textline_orientation=True)
+        except TypeError:
+            return PaddleOCR(lang=lang, use_angle_cls=True)
+    hi_model = build("hi")
+    en_model = build("en")
     return hi_model, en_model
 
 hi_ocr, en_ocr = get_ocr_models()
